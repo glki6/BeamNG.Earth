@@ -93,6 +93,13 @@ def build_tile(md, frame, aid, tx, ty, elev, out_dir, vfs_dir, urban=None, width
     dir_mesh, dir_faces = (_dirs(md, frame, tx, ty, elev, context, decks, left_hand, mph, out_dir, vfs_dir, aid,
                                  autobahn=german) if dirs else (None, {}))
     rsign_mesh = _rsigns(md, frame, tx, ty, elev, context, decks, left_hand, mph, country) if rsigns else None
+    import hkstreets                    # Hong Kong's bilingual street name plates at junctions (a picture a name)
+    if hkstreets.wanted(country):
+        hk_mesh, hk_faces = _optional('Street name plates', hkstreets.sign_tile, md, frame, tx, ty, elev, out_dir,
+                                      vfs_dir, context, decks, country, left_hand)
+        if hk_mesh is not None:
+            import busstationsign
+            dir_mesh, dir_faces = busstationsign.merge(dir_mesh, hk_mesh), {**dir_faces, **hk_faces}
     import busstationsign               # the bus stations' name signs (on whether or not the direction boards are)
     bus_mesh, bus_faces = _optional('Bus station signs', busstationsign.sign_tile, md, frame, tx, ty, elev, out_dir,
                                     vfs_dir, country)
