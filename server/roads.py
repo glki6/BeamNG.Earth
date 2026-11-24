@@ -14240,7 +14240,14 @@ def build_tile(frame, tx, ty, cells, elev, urban_fn=None, walks=None, bridges=No
         crosswalks, jlines, jramps, teeth, zebras = designs.junction_paint(
             de_ctl, roads, de_ctx, crosswalks, jlines, jramps, nodes, signals, left_hand)
     elif walks is not None and str(country or "").upper() != "SE":
-        if drive is not None and drive.get("marks") is not None:
+        import hkzebras as _hz
+        if _hz.is_hk(nodes):
+            # Hong Kong: the Transport Department's zebras striped, with their give-way lines and zig-zags; the
+            # junctions' crossings without stripes, studded under signals (hkzebras.paint)
+            crosswalks, jramps, hz_walks, hz_marks = _hz.paint(roads, nodes, crosswalks, jramps, signals)
+            teeth = teeth + hz_marks
+            zebras = zebras + [(np.array([cw["a"], cw["b"]])[:, :2], cw["w"] / 2 + _hz.GIVE_WAY_M) for cw in hz_walks]
+        elif drive is not None and drive.get("marks") is not None:
             # BNE_NODE_MARKINGS: the map's zebras, stop and give-way nodes painted (drivefeat.mapped_marks)
             import drivefeat as _df
             crosswalks, mteeth, jlines, mz = _df.mapped_marks(roads, drive["marks"], crosswalks, jlines, signals,

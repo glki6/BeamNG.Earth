@@ -1405,7 +1405,7 @@ def _roads_tile_cached(aid, lat, lon, zoom, tx, ty, out_dir, vfs_dir, sidewalks,
                     *_radar_key(), bool(towns_on), roadwear.wear_key(wear, lat), bool(roadsmod.ROADS_IN_GROUND),
                     *_surf_tags(geodesy.EnuFrame(lat, lon), *roadsmod_tile_bbox(tx, ty)),
                     _nyc_key(geodesy.EnuFrame(lat, lon), roadsmod_tile_bbox(tx, ty)) if buildings else None,
-                    bool(de_junctions), *de)     # (the German junction parts last)
+                    *_hk_zebra_key(country), bool(de_junctions), *de)     # (the German junction parts last)
     wh = _where_enu(lat, lon, *roadsmod_tile_bbox(tx, ty),
                     sidewalks=bool(sidewalks), lift=float(lift), buildings=bool(buildings),
                     **cliff_settings.cache_options,
@@ -1434,6 +1434,18 @@ def _md_versions(buildings=False):
     import osmcolours
     import osmyears
     return dict(md.versions(), osmyears=osmyears.identity(md), osmcolours=osmcolours.identity(md))
+
+
+def _hk_zebra_key(country):
+    """The road tile key's part for Hong Kong's zebras (hkzebras.identity): none outside Hong Kong (the keys as before
+    there)."""
+    import hkzebras
+    if not hkzebras.wanted(country):
+        return ()
+    md = getattr(_s, "md", None) if _s is not None else None
+    if md is not None:
+        hkzebras.configure(getattr(md, "cache_dir", None), getattr(md, "fetcher", None))
+    return (("hkzebras", hkzebras.identity()),)
 
 
 def _nyc_key(frame, box, cache_dir=None):
@@ -1822,6 +1834,9 @@ def _tile_parts(mark, frame, tile, zoom, g, buildings, left_hand, mph, gas_stati
         import designs
         de_nodes = designs.reads_here(True, frame, designs.tile_reach(box, skin_margin))
     nodes = secrossings.read(_s.md, frame, near_cells) if secrossings.wanted(country, de_nodes) else None
+    import hkzebras                     # (Hong Kong's: the Transport Department's zebras, roads.build_tile, _sign_rows)
+    if nodes is None and hkzebras.wanted(country):
+        nodes = hkzebras.read(_s.md, frame, box)
     import drivefeat                    # (the mapped driving features' inputs: None with every switch off)
     drive = drivefeat.tile_inputs(_s.md, frame, near_cells, nodes)
     clearance = [] if buildings else None      # (build_tile's RoadClearance, PR #629: the powerlines' too)
@@ -3315,6 +3330,9 @@ def _sign_rows(frame, cell_fn, near_roads, nodes, box, elev, urban, widths, left
     fail (logged). After every barrier's rows: medians takes all that come before them for barriers."""
     import sesigns
     try:
+        import hkzebras
+        if hkzebras.is_hk(nodes):       # (Hong Kong's zebras' beacons)
+            return hkzebras.tile_rows(frame, near_roads, nodes, box, elev)
         if str(country or "").upper() not in sesigns.COUNTRIES:
             return []
         ways = None

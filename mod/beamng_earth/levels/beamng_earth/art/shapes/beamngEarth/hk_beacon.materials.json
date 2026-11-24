@@ -1,0 +1,73 @@
+{
+  "bne_hk_beacon_black": {
+    "name": "bne_hk_beacon_black",
+    "mapTo": "bne_hk_beacon_black",
+    "class": "Material",
+    "version": 1.5,
+    "persistentId": "ded4bd3e-936e-5098-8dea-d9cbdc70f839",
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.03,
+          0.03,
+          0.03,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.55
+      },
+      {},
+      {},
+      {}
+    ]
+  },
+  "bne_hk_beacon_white": {
+    "name": "bne_hk_beacon_white",
+    "mapTo": "bne_hk_beacon_white",
+    "class": "Material",
+    "version": 1.5,
+    "persistentId": "0d61a870-a5d8-5aa5-a49e-2b793ecd3ede",
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.86,
+          0.86,
+          0.84,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.5
+      },
+      {},
+      {},
+      {}
+    ]
+  },
+  "bne_hk_beacon_globe": {
+    "name": "bne_hk_beacon_globe",
+    "mapTo": "bne_hk_beacon_globe",
+    "class": "Material",
+    "version": 1.5,
+    "persistentId": "a610b909-4e77-5cd6-aaa9-62069f6e075a",
+    "Stages": [
+      {
+        "baseColorFactor": [
+          0.95,
+          0.62,
+          0.08,
+          1.0
+        ],
+        "metallicFactor": 0.0,
+        "roughnessFactor": 0.3,
+        "emissiveFactor": [
+          0.9,
+          0.55,
+          0.05
+        ]
+      },
+      {},
+      {},
+      {}
+    ]
+  }
+}

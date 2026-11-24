@@ -481,6 +481,10 @@ for g, h in pairs(SE_SIGNS) do
   M.CATALOG[g] = { { '/levels/beamng_earth/art/shapes/beamngEarth/bne_' .. g, h } }
   M.GROUP_MAX_M[g] = 500
 end
+-- Hong Kong's zebra crossing beacon (server hkzebras.py, tools/build_hk_beacon.py): a yellow globe on a black and white
+-- post, 2.95 m, at true size.
+M.CATALOG.hk_beacon = { { '/levels/beamng_earth/art/shapes/beamngEarth/bne_hk_beacon', 2.95 } }
+M.GROUP_MAX_M.hk_beacon = 400
 -- Germany's junction signs (server designs.py GROUPS and HEIGHTS, tools/build_median_props.py's DE_SIGNS): each
 -- mesh is its sign at its true size (Größe 1 to 3, some over a 1002 plate, a roundabout's 205 over its 215), so rows
 -- carry these heights and draw at 1:1. Few items a tile: one spelling each (ONE_SPELLING), shown out to 300 m.
@@ -642,7 +646,8 @@ M.SEASON = { straw_n = { 7, 8, 9 }, straw_s = { 1, 2, 3 }, silage_n = { 5, 6, 7,
 -- below the tile cap.
 function M.isBarrier(g)
   return g ~= nil and (g:sub(1, 9) == 'guardrail' or g:sub(1, 6) == 'jersey' or g == 'cable' or g == 'kantstolpe'
-    or g:sub(1, 3) == 'se_' or g:sub(1, 3) == 'de_')      -- (a sign thinned away is a rule gone, not a tree fewer)
+    or g:sub(1, 3) == 'se_' or g:sub(1, 3) == 'de_' or g == 'hk_beacon')    -- (a sign thinned away is a rule gone,
+                                                                              -- not a tree fewer)
 end
 
 -- the Vienna Convention's round km/h signs: their shapes and how far out they show (CATALOG, GROUP_MAX_M)
