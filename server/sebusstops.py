@@ -171,13 +171,14 @@ def _to_lines(x, y, lines):
     return best
 
 
-def pole(x, y, near, platforms=(), fid=""):
+def pole(x, y, near, platforms=(), fid="", left_hand=False):
     """(x, y, travel x, travel y) of the pole of the stop at (x, y): KERB_M past the edge of the nearest carriageway
     (near: shelters' roads, a signroads.Spec or a width each) on the stop's side, where the traffic of that side goes
     (travel x, y: right-hand traffic); None with no carriageway within shelters.NEAR_ROAD_M. A point beside the road
     has its pole AHEAD_M on (the head of the stop, clear of a shelter). A point on the road (within ON_ROAD_M of the
     centre line) has it beside itself: on the side of the nearest of platforms ((k, 2) lines) within PLATFORM_M, else
-    on the right of a one-way road, else on a side by fid."""
+    on the right of a one-way road, else on a side by fid. left_hand (Hong Kong's hkbusstops): the kerb is on the
+    traffic's left, a one-way road's halt stands on its left."""
     hit = shelters._closest(near, x, y)
     if hit is None:
         return None
@@ -192,12 +193,13 @@ def pole(x, y, near, platforms=(), fid=""):
         else:
             spec = next((r[1] for r in near if _on(r, cx, cy)), None)
             if getattr(spec, "oneway", False):
-                side = -float(int(getattr(spec, "dir", 0) or 1))    # (the right of its traffic)
+                side = (1.0 if left_hand else -1.0) * float(int(getattr(spec, "dir", 0) or 1))    # (the kerb side
+                # of its traffic: its right, its left in left-hand traffic)
             else:
                 side = shelters._side(fid)
     s = 1.0 if side >= 0.0 else -1.0
     ax, ay = -ty * s, tx * s                        # away from the carriageway
-    gx, gy = -ay, ax                                # the traffic's way there: away is on its right
+    gx, gy = (ay, -ax) if left_hand else (-ay, ax)  # the traffic's way there: away is on its right (left)
     d = half + KERB_M
     return cx + ax * d + gx * ahead, cy + ay * d + gy * ahead, gx, gy
 
@@ -207,8 +209,9 @@ def _on(road, x, y):
     return got is not None and got[0] < 0.01
 
 
-def stops(md, frame, box):
-    """([(fid, x, y, name, läge)] of the bus stops whose point is in box, by id; the platforms near it, (k, 2) lines)."""
+def stops(md, frame, box, labeler=None):
+    """([(fid, x, y, name, läge)] of the bus stops whose point is in box, by id; the platforms near it, (k, 2) lines).
+    labeler(feats, i) -> the two texts in place of label's (Hong Kong's: Chinese and English names)."""
     x0, y0, x1, y1 = (float(v) for v in box)
     m = PLATFORM_M + ON_ROAD_M
     la, lo, _ = frame.enu_to_geodetic(np.array([x0 - m, x0 - m, x1 + m, x1 + m]),
@@ -238,16 +241,16 @@ def stops(md, frame, box):
                 continue
             spot = shelters._spot(feats, frame, i)
             if spot is not None and x0 <= spot[0] < x1 and y0 <= spot[1] < y1:
-                out[fid] = (fid, spot[0], spot[1], *label(feats, i))
+                out[fid] = (fid, spot[0], spot[1], *(labeler or label)(feats, i))
     return [out[k] for k in sorted(out)], platforms
 
 
-def rows_of(found, near, decks=(), platforms=()):
+def rows_of(found, near, decks=(), platforms=(), left_hand=False):
     """[(x, y, travel x, travel y, name, läge)] of the poles of stops() beside the roads near, none on a bridge's deck,
     one for the stops of one name and letter on one side within SAME_M (a stop mapped as its pole and as its halt)."""
     out = []
     for fid, x, y, name, ref in found:
-        got = pole(x, y, near, platforms, fid)
+        got = pole(x, y, near, platforms, fid, left_hand)
         if got is None or exitsigns._on_deck(np.array(got[:2]), decks, DECK_M):
             continue
         if any(o[4:] == (name, ref) and o[2] * got[2] + o[3] * got[3] > 0.0

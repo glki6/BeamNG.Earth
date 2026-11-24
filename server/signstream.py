@@ -109,6 +109,12 @@ def build_tile(md, frame, aid, tx, ty, elev, out_dir, vfs_dir, urban=None, width
                                           vfs_dir, context, decks, country, left_hand)
         if stop_mesh is not None:
             dir_mesh, dir_faces = busstationsign.merge(dir_mesh, stop_mesh), {**dir_faces, **stop_faces}
+    import hkbusstops                   # Hong Kong's bus stop signs: Sweden's for left-hand roads, the name in both scripts
+    if hkbusstops.wanted(country):
+        stop_mesh, stop_faces = _optional('Bus stop signs', hkbusstops.sign_tile, md, frame, tx, ty, elev, out_dir,
+                                          vfs_dir, context, decks, country, left_hand)
+        if stop_mesh is not None:
+            dir_mesh, dir_faces = busstationsign.merge(dir_mesh, stop_mesh), {**dir_faces, **stop_faces}
     import euguardrails
     french = False
     if euguardrails.enabled():
