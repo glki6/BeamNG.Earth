@@ -1334,12 +1334,21 @@ def signs_tile(aid, lat, lon, zoom, tx, ty, out_dir, vfs_dir, left_hand=False, m
         sv = None
     k = revisit.key("signs", round(float(lat), 7), round(float(lon), 7), zoom, tx, ty, bool(left_hand), bool(mph),
                     country, bool(dirs), bool(rsigns), bool(dej), bool(towns_on), _md_versions(), repr(sv),
-                    ("rules", _ground_rules()), *_radar_key(), *de)
+                    ("rules", _ground_rules()), *_radar_key(), *de, *_hk_speed_key(country))
     return _revisit_tile("signs", k, aid, tx, ty, out_dir, vfs_dir, f"signs_{aid}_{tx}_{ty}.json",
                          lambda: _signs_tile(aid, lat, lon, zoom, tx, ty, out_dir, vfs_dir, left_hand, mph, country,
                                              dirs, rsigns, dej, towns_on),
                          lambda res: {"n": int(res[1])}, lambda path, extra: (path, int(extra.get("n", 0))),
                          files_of=_vfs_files)
+
+
+def _hk_speed_key(country):
+    """The sign tile key's part for Hong Kong's posted speed limits (hkspeed.identity): none outside Hong Kong (the keys
+    as before there)."""
+    if country != "HK":
+        return ()
+    import hkspeed
+    return (("hkspeed", hkspeed.identity()),)
 
 
 def _vfs_files(text, vfs_dir):

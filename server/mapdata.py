@@ -429,6 +429,8 @@ class MapData:
         regionaldata.configure(cache_dir, self.fetcher)     # (PR #505's regional scenery data, fetched on demand)
         import germanroads              # (Germany's surveyed road widths, lanes and surfaces, fetched on demand)
         germanroads.configure(cache_dir, self.fetcher)
+        import hkspeed                  # (Hong Kong's posted speed limits, the Transport Department's: fetched on demand)
+        hkspeed.configure(cache_dir, self.fetcher)
         import roadz                    # (real road / deck / tunnel heights where a source has them: BNE_ROADZ)
         roadz.install(cache_dir, self.fetcher, self)
         self.lane_tags = railtags.LaneTags(cache_dir, self.fetcher) if railtags.LANES_ON else None   # (markings.py)

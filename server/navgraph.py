@@ -18,6 +18,7 @@ import re
 import numpy as np
 import dmath
 import dnp
+import hkspeed
 
 import lanesections
 import roads
@@ -162,7 +163,10 @@ def _us_place(feats, i):
 
 
 def mapped_limit(feats, i, at=0.5):
-    """Is road feature i's speed limit at fraction at the map's own (max_speed_kmh), not its class's default?"""
+    """Is road feature i's speed limit at fraction at the map's own (max_speed_kmh) or a posted one (Hong Kong's:
+    hkspeed), not its class's default?"""
+    if hkspeed.kmh(feats, i, at) is not None:
+        return True
     speed = feats.rules.get("max_speed_kmh")
     if speed is None:
         return False
@@ -224,9 +228,14 @@ def road_mph(feats, i, spec, mph=True, at=0.5, country=None, de_on=False):
     """The speed limit (mph) of road feature i at fraction at (default: its middle), else the class default
     (capped in town for arterials), or None for a class the AI does not drive. Shared by the graph and the speed-limit
     signs (speedsigns.py), so a sign shows what the traffic drives. de_on (the German junction signs, the graph's):
-    a road of a German zone without a mapped limit (osm_zone_maxspeed) drives the zone's, as its 274.1 posts it."""
+    a road of a German zone without a mapped limit (osm_zone_maxspeed) drives the zone's, as its 274.1 posts it.
+    Hong Kong (hkspeed.py): the Transport Department's posted limit first, and once those are loaded the law's 50 km/h
+    on the ordinary classes it does not list (country "HK")."""
     if spec is None or spec.cls not in DRIVE:
         return None
+    hk = hkspeed.kmh(feats, i, at)          # (Hong Kong: the Transport Department's posted limit, before the map's)
+    if hk is not None:
+        return hk / 1.609344
     speed = feats.rules.get("max_speed_kmh")
     if speed is not None:
         for r in speed.rows(i):
@@ -234,6 +243,8 @@ def road_mph(feats, i, spec, mph=True, at=0.5, country=None, de_on=False):
                 value = float(speed.value[r])
                 if math.isfinite(value) and value > 0:
                     return value / 1.609344
+    if country == "HK" and spec.cls in hkspeed.LAW_CLASSES and hkspeed.loaded():
+        return hkspeed.LAW_KMH / 1.609344   # (a road the posted limits do not list: the law's 50, Cap. 374 s. 40)
     if de_on:
         zone = feats.attrs.get("osm_zone_maxspeed")
         if zone is not None and isinstance(zone[i], str):
