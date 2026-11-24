@@ -1328,6 +1328,9 @@ def signs_tile(aid, lat, lon, zoom, tx, ty, out_dir, vfs_dir, left_hand=False, m
     if dej:
         import designs
         de = designs.cache_parts(True, geodesy.EnuFrame(lat, lon), designs.tile_reach(roadsmod_tile_bbox(tx, ty)))
+    if country == "HK":                 # (Hong Kong's regulatory signs: the Transport Department's layers in the key)
+        import hkregsigns
+        de = (*de, ("hkregsigns", hkregsigns.identity()))
     try:
         sv = src.version()
     except Exception:

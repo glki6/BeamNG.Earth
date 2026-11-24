@@ -103,6 +103,12 @@ def build_tile(md, frame, aid, tx, ty, elev, out_dir, vfs_dir, urban=None, width
                                       vfs_dir, country)
     if rail_mesh is not None:
         dir_mesh, dir_faces = busstationsign.merge(dir_mesh, rail_mesh), {**dir_faces, **rail_faces}
+    import hkregsigns                   # Hong Kong's regulatory signs where the Transport Department maps them
+    if hkregsigns.wanted(country):
+        reg_mesh, reg_faces = _optional('Regulatory signs', hkregsigns.sign_tile, md, frame, tx, ty, elev, out_dir,
+                                        vfs_dir, context, decks, country, left_hand)
+        if reg_mesh is not None:
+            dir_mesh, dir_faces = busstationsign.merge(dir_mesh, reg_mesh), {**dir_faces, **reg_faces}
     import sebusstops                   # Sweden's bus stop signs: E22 and the stop's name on a pole at the kerb
     if sebusstops.wanted(country):
         stop_mesh, stop_faces = _optional('Bus stop signs', sebusstops.sign_tile, md, frame, tx, ty, elev, out_dir,
