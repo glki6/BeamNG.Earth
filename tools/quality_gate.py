@@ -23,7 +23,7 @@ MODULES = (
     "test_prefetch_chain", "test_demand", "test_roadwidth", "test_roadcorners",
     "test_sketchfab_assets", "test_subsea_tunnels", "test_tunnels",
     "test_host_package", "test_carriageway_solver",
-    "test_portugal_imagery",
+    "test_portugal_imagery", "test_hkbuslanes",
     "test_rail_crossing_assets",
     "test_native_stress",
     "test_bridge_level_spans",

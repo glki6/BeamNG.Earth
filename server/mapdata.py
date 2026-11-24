@@ -432,6 +432,8 @@ class MapData:
         import roadz                    # (real road / deck / tunnel heights where a source has them: BNE_ROADZ)
         roadz.install(cache_dir, self.fetcher, self)
         self.lane_tags = railtags.LaneTags(cache_dir, self.fetcher) if railtags.LANES_ON else None   # (markings.py)
+        import hkbuslanes               # (Hong Kong's bus-only lanes, the Transport Department's: fetched on demand)
+        hkbuslanes.configure(cache_dir, self.fetcher)
         import decisions                # (the shared decision archives' weekly slices are made from these shards)
         decisions.register_weekly(self)
         import highwaysigns             # (exit, overhead and mile-marker signs: railtags.SignTags, signstream.py)

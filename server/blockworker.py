@@ -1405,7 +1405,7 @@ def _roads_tile_cached(aid, lat, lon, zoom, tx, ty, out_dir, vfs_dir, sidewalks,
                     *_radar_key(), bool(towns_on), roadwear.wear_key(wear, lat), bool(roadsmod.ROADS_IN_GROUND),
                     *_surf_tags(geodesy.EnuFrame(lat, lon), *roadsmod_tile_bbox(tx, ty)),
                     _nyc_key(geodesy.EnuFrame(lat, lon), roadsmod_tile_bbox(tx, ty)) if buildings else None,
-                    bool(de_junctions), *de)     # (the German junction parts last)
+                    *_hk_bus_key(country), bool(de_junctions), *de)     # (the German junction parts last)
     wh = _where_enu(lat, lon, *roadsmod_tile_bbox(tx, ty),
                     sidewalks=bool(sidewalks), lift=float(lift), buildings=bool(buildings),
                     **cliff_settings.cache_options,
@@ -2485,7 +2485,16 @@ def _geo_content_key(key, zoom, buildings, left_hand, mph, gas_stations, buried,
                        # (the ground rules: rules, the server's own when it asks, earthd.Server.geo_content_key)
                        ("rules", _ground_rules() if rules is None else rules),
                        _nyc_key(tile.frame, tile.box, cache_dir) if buildings else None,
-                       *deck_key, bool(de_junctions), *de)     # (the German junction parts last)
+                       *deck_key, *_hk_bus_key(country), bool(de_junctions), *de)     # (the German junction parts last)
+
+
+def _hk_bus_key(country):
+    """The road tiles' key part for Hong Kong's bus-only lanes (hkbuslanes.identity): none outside Hong Kong (the keys as
+    before there)."""
+    if country != "HK":
+        return ()
+    import hkbuslanes
+    return (("hkbuslanes", hkbuslanes.identity()),)
 
 
 def prebuild_geo(gx, gy, zoom, scratch, buildings, left_hand, mph, gas_stations, buried=0.0, lamp_region=None,

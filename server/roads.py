@@ -6705,6 +6705,7 @@ def extras(spec, pts, lon, left_hand=False, country=None, osm=None, ws=None, shi
     motorway = cls == "motorway"
     lw_ = st.w_motorway if motorway else (st.w_urban or st.w) if urban else st.w           # a line's width
     sweden = st is markings.STYLES["SE"]
+    hongkong = st is markings.STYLES["HK"]
     barrier = sweden and kind == "paved" and _motesfri_section(spec, osm)   # (a 2+1 road's: motesfri.py)
 
     def mark(kind_, mat, width, along, pattern=None, side=None, dash_phase=phase):
@@ -6749,10 +6750,15 @@ def extras(spec, pts, lon, left_hand=False, country=None, osm=None, ws=None, shi
     drive, lanes = lane_layout(spec)
     # (tapered: the lanes' lines spread with the driving width)
     scale = 1.0 if ws is None else np.maximum(drive + (wv - w), 0.5) / max(drive, 0.5)
+    # a road whose only lane tag is Hong Kong's bus lane (hkbuslanes): its lines from the plan, its centre as without
+    hk_bus_only = bool(osm) and set(osm) == {markings.HK_BUS_KEY}
     if not spec.oneway and spec.lanes and lanes >= 3 and lanes % 2:
         osm = {**(osm or {}), "lanes": lanes}    # keep odd mapped totals in the paint as well as the AI
     plan = markings.lane_plan(osm, not spec.oneway, drive, lanes, left_hand) \
         if kind == "paved" and (cls in CENTRE_CLASSES or cls in LANE_CLASSES) else None
+    if plan is not None and hk_bus_only and lanes >= 4:
+        # (lane tags would not have come without the bus lane: four lanes or more keep the solid centre line, below)
+        plan = [(off, role, "double" if role == "centre" and how is None else how) for off, role, how in plan]
     if plan is not None and not spec.oneway and w - parking_width(spec) < st.min_centre_m:
         plan = None                     # (the map's lanes do not widen it: as the count's, too narrow a road has none)
     if plan is not None:
@@ -6772,6 +6778,9 @@ def extras(spec, pts, lon, left_hand=False, country=None, osm=None, ws=None, shi
                 along = at(off)
                 if sweden and how == "bus":      # (M6: broken, wider than the lane lines)
                     mark("lane", "line_white", max(lw_, markings.M6_W), along, markings.M6_PATTERN)
+                    continue
+                if hongkong and how == "bus":    # (Figure No. 504: a thick solid white line)
+                    mark("lane", "line_white", max(lw_, markings.HK_BUS_W), along)
                     continue
                 if lane_growth is None:
                     mark("lane", "line_white", lw_, along, None if how else pat)
@@ -7592,7 +7601,8 @@ def lane_tags(feats, i):
         if col is not None and col[i] not in (None, ""):
             out[k] = col[i]
     import franceroads
-    return franceroads.observed_lane_tags(feats, i, out)
+    import hkbuslanes
+    return hkbuslanes.lane_tags(feats, i, franceroads.observed_lane_tags(feats, i, out))
 
 
 def lane_tag_parts(feats, i):
@@ -7607,7 +7617,8 @@ def lane_tag_parts(feats, i):
         fast.require(383, "lane_tag_parts")
         got = fast._ef.lane_tag_parts(parts[i])
         if got is not None:
-            return got
+            import hkbuslanes           # (Hong Kong's bus lanes run along the whole feature: each way's part takes them)
+            return [(a, b, w, hkbuslanes.lane_tags(feats, i, t)) for a, b, w, t in got]
     rec = feats.attrs.get("src_record")
     return [(0.0, 1.0, railtags.way_id(str(rec[i])) if rec is not None else None, lane_tags(feats, i))]
 

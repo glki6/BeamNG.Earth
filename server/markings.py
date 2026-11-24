@@ -149,6 +149,27 @@ def _bus_boundary(flags, a, b):
     return "bus" if flags is not None and bool(flags[a]) != bool(flags[b]) else False
 
 
+# Hong Kong's bus lane line: "A thick solid white line on the road marks the edge of a bus lane" (TD Road Users' Code,
+# "Bus lanes"; Cap. 374G reg. 2 and 12, Figure No. 504). Its width is in TPDM Volume 3 section 5.9, not read here:
+# 0.30 m, three of Hong Kong's 0.10 m lane lines (markings._HK), Britain's wide bus lane line. Unverified.
+HK_BUS_W = 0.30
+HK_BUS_KEY = "bne:hk_bus_lane"      # (hkbuslanes.KEY: the Transport Department's bus-only lanes on the road)
+
+
+def _kerb_bus_sides(osm, two_way, left_hand):
+    """The geometry's sides ("left" / "right") whose kerb lane is a bus lane by hkbuslanes' value in osm (Hong Kong's
+    Transport Department: no lane by lane list, the kerb lane): "left" / "right" as given (the lane's line beside the
+    road's centreline), "along" the kerb of traffic going along the geometry (left in left-hand traffic), "against"
+    the other kerb on a two-way road and nothing on a one-way road (a contra-flow lane: not drawn)."""
+    vals = set(str(osm.get(HK_BUS_KEY) or "").split(";")) - {""}
+    out = vals & {"left", "right"}
+    if "along" in vals:
+        out.add("left" if left_hand else "right")
+    if "against" in vals and two_way:
+        out.add("right" if left_hand else "left")
+    return out
+
+
 def lane_plan(osm, two_way, drive, lanes, left_hand=False):
     """The lines across a carriageway from OpenStreetMap's lane tags (osm: {key: value} of railtags.LANE_COLUMNS, may
     be empty): [(offset m, left of the line's direction, positive left; role, solid)]. role: "centre" (between the
@@ -163,11 +184,13 @@ def lane_plan(osm, two_way, drive, lanes, left_hand=False):
         n = lanes
         ch = _vals(osm.get("change:lanes"))
         bus = _bus_flags(osm, n, "bus:lanes", "psv:lanes")
+        kerb = _kerb_bus_sides(osm, False, left_hand) if bus is None else ()
         lw = drive / max(n, 1)
         out = []
         for k in range(1, n):
             solid = (ch is not None and len(ch) == n and _no_change(ch[k - 1], ch[k])
-                     or _bus_boundary(bus, k - 1, k))
+                     or _bus_boundary(bus, k - 1, k)
+                     or ("bus" if (k == 1 and "left" in kerb) or (k == n - 1 and "right" in kerb) else False))
             # lanes left to right in travel: lane k's left edge at -drive/2 + k * lw from the right? (offsets are left
             # positive: the leftmost lane starts at +drive/2)
             out.append((drive / 2 - k * lw, "lane", solid))
@@ -193,11 +216,14 @@ def lane_plan(osm, two_way, drive, lanes, left_hand=False):
     ch_r = _vals(osm.get("change:lanes:" + fore))
     bus_l = _bus_flags(osm, left_n, "bus:lanes:" + back, "psv:lanes:" + back, "bus:lanes", "psv:lanes")
     bus_r = _bus_flags(osm, right_n, "bus:lanes:" + fore, "psv:lanes:" + fore, "bus:lanes", "psv:lanes")
+    kerb = _kerb_bus_sides(osm, True, left_hand)
+    kerb_l = "left" in kerb and bus_l is None           # (OpenStreetMap's own lane by lane list first)
+    kerb_r = "right" in kerb and bus_r is None
     # the left-side lanes (travel against the way in right-hand traffic: their left to right is the way's right to left)
     for k in range(1, left_n):
         off = edge - k * lw
         solid = (ch_l is not None and len(ch_l) == left_n and _no_change(ch_l[left_n - k - 1], ch_l[left_n - k])
-                 or _bus_boundary(bus_l, left_n - k - 1, left_n - k))
+                 or _bus_boundary(bus_l, left_n - k - 1, left_n - k) or ("bus" if kerb_l and k == 1 else False))
         out.append((off, "lane", solid))
     c_left = edge - left_n * lw
     no_pass = osm.get("overtaking") == "no"
@@ -216,7 +242,7 @@ def lane_plan(osm, two_way, drive, lanes, left_hand=False):
     for k in range(1, right_n):
         off = c_right - k * lw
         solid = (ch_r is not None and len(ch_r) == right_n and _no_change(ch_r[k - 1], ch_r[k])
-                 or _bus_boundary(bus_r, k - 1, k))
+                 or _bus_boundary(bus_r, k - 1, k) or ("bus" if kerb_r and k == right_n - 1 else False))
         out.append((off, "lane", solid))
     return out
 
