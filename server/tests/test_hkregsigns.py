@@ -258,6 +258,19 @@ class FaceTest(unittest.TestCase):
         self.assertEqual([r[0] for r in rows], ["Over 12 tonnes", "Except for access"])
         self.assertAlmostEqual(hkregsigns._disc_of(h, rows), 0.6, places=9)
 
+    def test_plates_bilingual(self):
+        self.assertEqual(hkregsigns.chinese("Over 12 tonnes"), "超逾12公噸")
+        self.assertEqual(hkregsigns.chinese("Over 5.5 m"), "超逾5.5米")
+        self.assertEqual(hkregsigns.chinese("Except buses"), "巴士例外")
+        self.assertEqual(hkregsigns.chinese("Something else"), "")
+        for text in hkregsigns.EXCEPT.values():                     # (every plate has its Chinese, in the font)
+            zh = hkregsigns.chinese(text)
+            self.assertTrue(zh, text)
+            self.assertGreater(hkregsigns._zh_img(zh, 40).width, 40 * len(zh) * 0.6, text)
+        wide = hkregsigns.plate_width("Except public light buses", 0.6)
+        self.assertGreater(wide, 0.6)
+        self.assertEqual(round(wide / 0.05, 6) % 1, 0)
+
     def test_every_symbol_draws(self):
         for kind, fig in (("lorry", ""), ("minibus", ""), ("bus", ""), ("motorcycle", ""), ("learner", ""),
                           ("ring", ""), ("height", "5.3m"), ("width", "2m"), ("length", "10m"), ("weight", "5.5t"),

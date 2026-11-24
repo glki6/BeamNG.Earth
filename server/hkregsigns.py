@@ -36,7 +36,18 @@ A part-time ban's times are not in the data: its time plate is left out. A recor
 Hong Kong's signs follow the United Kingdom's (Road Traffic (Traffic Control) Regulations Schedule 1): white discs in a
 red ring, black symbols. The pages read give no drawing's measures: the ring is a tenth of the diameter as the UK's,
 the disc 600 mm (750 mm on fast roads), the plates' English in Transport Heavy (the light-background face, TPDM Vol 3
-1.3.1.7). The plates are English only: no page read gave their Chinese wording, and none is guessed.
+1.3.1.7). Each plate is two lines, English over Traditional Chinese (as Hong Kong's signs set their two languages,
+English above), the Chinese in Noto Sans HK Bold (the street name plates' cut, NotoSansHK-Bold-streets.otf).
+
+The plates' Chinese (CHINESE): no page read showed a plate's Chinese as printed (the Road Users' Code's plate pictures
+could not be read), so it is built from the Transport Department's own words for each part, and the pattern "X例外"
+the regulations give the bilingual plate "Except General Holidays / 公眾假期例外" (LN 86 of 2001) and the Road Users'
+Code's heading "巴士例外" (its "except bus" plate):
+    seen as such     巴士例外 (except buses)
+    parts seen       專營巴士 (sign 65), 電單車 (sign 35), 公共小型巴士 (sign 37), 貨車 (sign 38) + 例外;
+                     超逾 N 公噸 (TD notices: "車輛總重超逾4公噸"), 超逾 N 米 (米: TD's metre)
+    guessed          出入例外 (except for access; sign 54's caption is prose), 持許可證者例外 (permit: the notices'
+                     "許可證"), 私家車例外, 專線小巴例外 (green minibuses)
 
 Placement: a sign stands at the kerb beside its point, facing the traffic it applies to. The layers' BOUND field is
 not documented and is not used. A point snaps to the nearest road within SNAP_M; on a one-way road the sign faces its
@@ -74,7 +85,7 @@ log = logging.getLogger("earthd.hkregsigns")
 ON = os.environ.get("BNE_HK_REGSIGNS", "on").strip().lower() not in ("off", "0", "false", "no")
 COUNTRIES = {"HK"}
 VERSION = "hkregsigns-v1"
-FACE_VERSION = 1
+FACE_VERSION = 2
 BASE = "https://portal.csdi.gov.hk/server/rest/services/common/td_rcd_1638949160594_2844/FeatureServer"
 LAYERS = {"pro": (5, ("INC_VEH_TYPE", "EXC_VEH_TYPE", "OTHER_REST_TYPE_GV", "PART_TIME_PROHIBITION", "REMARKS")),
           "vr": (0, ("MAX_HEIGHT", "MAX_WIDTH", "MAX_LENGTH", "MAX_WEIGHT", "MAX_AXLE_WEIGHT", "REMARKS"))}
@@ -83,14 +94,17 @@ RETRY_S = 3600                      # s: unreachable, asked again after this
 REACH_M = 40.0                      # m past a tile's box its points are read (a post stands up to this far off)
 
 FONT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data", "fonts", "AG-Transport-Heavy.ttf")
+ZH_FONT = os.path.join(os.path.dirname(FONT), "NotoSansHK-Bold-streets.otf")
 METAL = "bne_dir_metal"             # (dirsigns.METAL: the boards' bare metal, their backs)
 RED, BLACK, WHITE = (196, 18, 32), (12, 12, 12), (255, 255, 255)
 PX_PER_M = 600.0
 DISC = (0.6, 0.75)                  # m: the disc on a town road, on a road over URBAN_KMH
 URBAN_KMH = 70.0
 RING = 0.10                         # the red ring's width over the diameter
-PLATE_H = 0.13                      # m: a plate's height
+PLATE_H = 0.22                      # m: a plate's height (its English over its Chinese)
 PLATE_CAP = 0.05                    # m: its capitals
+ZH_H = 0.065                        # m: its Chinese characters' ink height
+ZH_GAP = 0.025                      # m between the English and the Chinese
 PLATE_SIDE = 0.04                   # m: lettering to its ends
 PLATE_BORDER = 0.008
 GAP = 0.03                          # m between a disc and its plate, and between stacked signs
@@ -113,6 +127,10 @@ PICTOGRAMS = {"GV": "lorry", "PLB": "minibus", "BUS": "bus", "MC": "motorcycle",
 EXCEPT = {"FA": "Except for access", "WP": "Except with permit", "PC": "Except private cars",
           "MC": "Except motor cycles", "GMB": "Except green minibuses", "FB": "Except franchised buses",
           "PLB": "Except public light buses", "GV": "Except goods vehicles", "BUS": "Except buses"}
+CHINESE = {"Except for access": "出入例外", "Except with permit": "持許可證者例外", "Except private cars": "私家車例外",
+           "Except motor cycles": "電單車例外", "Except green minibuses": "專線小巴例外",
+           "Except franchised buses": "專營巴士例外", "Except public light buses": "公共小型巴士例外",
+           "Except goods vehicles": "貨車例外", "Except buses": "巴士例外"}
 LIMITS = ("MAX_HEIGHT", "MAX_WIDTH", "MAX_LENGTH", "MAX_WEIGHT", "MAX_AXLE_WEIGHT")
 LIMIT_KIND = {"MAX_HEIGHT": "height", "MAX_WIDTH": "width", "MAX_LENGTH": "length", "MAX_WEIGHT": "weight",
               "MAX_AXLE_WEIGHT": "axle"}
@@ -320,9 +338,38 @@ def _text_img(text, cap_px):
     return im
 
 
+def chinese(text):
+    """A plate's Chinese ("" where none is known): CHINESE's, or "超逾 N 公噸" / "超逾 N 米" for "Over N tonnes|m"."""
+    if text in CHINESE:
+        return CHINESE[text]
+    m = re.fullmatch(r"Over ([0-9.]+) (tonnes|m)", text)
+    return f"超逾{m.group(1)}{'公噸' if m.group(2) == 'tonnes' else '米'}" if m else ""
+
+
+@lru_cache(maxsize=None)
+def _zh_font(px):
+    from PIL import ImageFont
+    return ImageFont.truetype(ZH_FONT, max(8, int(px)))
+
+
+def _zh_img(text, h_px):
+    """(L image of Chinese text's ink, sized so a character's ink is about h_px high: 永's ink over the em)."""
+    from PIL import Image, ImageDraw
+    ref = _zh_font(200)
+    l, t, r, b = ref.getbbox("永", anchor="ls")
+    font = _zh_font(200 * h_px / max(b - t, 1))
+    l, t, r, b = font.getbbox(text, anchor="ls")
+    im = Image.new("L", (max(1, r - l), max(1, b - t)))
+    ImageDraw.Draw(im).text((-l, -t), text, font=font, fill=255, anchor="ls")
+    return im
+
+
 def plate_width(text, disc):
-    """A plate's width (m): its text and PLATE_SIDE either end, at least the disc's diameter, in 0.05 m steps."""
-    need = _text_img(text, PLATE_CAP * PX_PER_M).width / PX_PER_M + 2 * PLATE_SIDE
+    """A plate's width (m): its longer line and PLATE_SIDE either end, at least the disc's diameter, in 0.05 m
+    steps."""
+    zh = chinese(text)
+    need = max(_text_img(text, PLATE_CAP * PX_PER_M).width,
+               _zh_img(zh, ZH_H * PX_PER_M).width if zh else 0) / PX_PER_M + 2 * PLATE_SIDE
     return float(max(disc, math.ceil(round(need / 0.05, 6)) * 0.05))
 
 
@@ -434,11 +481,15 @@ def picture(kind, figure, plates, disc):
         x1, y1 = x0 + pw * PX_PER_M, y0 + PLATE_H * PX_PER_M
         d.rectangle((x0, y0, x1, y1), fill=BLACK)
         d.rectangle((x0 + b, y0 + b, x1 - b, y1 - b), fill=WHITE)
-        im = _text_img(text, PLATE_CAP * PX_PER_M)
         room = int(pw * PX_PER_M - 2 * PLATE_SIDE * PX_PER_M)
-        if im.width > room:
-            im = im.resize((room, im.height), Image.LANCZOS)
-        d.bitmap((int((W - im.width) / 2), int(y0 + (PLATE_H * PX_PER_M - im.height) / 2)), im, fill=BLACK)
+        zh = chinese(text)
+        lines = [_text_img(text, PLATE_CAP * PX_PER_M)] + ([_zh_img(zh, ZH_H * PX_PER_M)] if zh else [])
+        lines = [im.resize((room, im.height), Image.LANCZOS) if im.width > room else im for im in lines]
+        gap = ZH_GAP * PX_PER_M if zh else 0.0
+        y = y0 + (PLATE_H * PX_PER_M - sum(im.height for im in lines) - gap) / 2
+        for im in lines:                # (the English over the Chinese)
+            d.bitmap((int((W - im.width) / 2), int(round(y))), im, fill=BLACK)
+            y += im.height + gap
     buf = io.BytesIO()
     img.save(buf, format="PNG", optimize=False)
     return buf.getvalue(), w_m, h_m, rows
